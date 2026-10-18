@@ -1,0 +1,56 @@
+@import "tailwindcss";
+
+@theme {
+  --font-sans: "Outfit", ui-sans-serif, system-ui, sans-serif;
+  --font-serif: "DM Serif Display", Georgia, serif;
+
+  --color-forest: #1a6b45;
+  --color-forest-dark: #145536;
+  --color-deep: #0d2f22;
+  --color-sidebar: #123b2b;
+  --color-mint: #e8f4ee;
+  --color-mint-soft: #edf6ef;
+  --color-mint-strong: #b7ddc6;
+  --color-success: #2f8f5b;
+  --color-accent: #d35e44;
+  --color-accent-dark: #b94c36;
+  --color-page: #f3f5f4;
+  --color-soft: #f8faf8;
+  --color-line: #d7ddd9;
+  --color-line-soft: #e8eee9;
+  --color-line-strong: #dfe7e1;
+  --color-muted: #6b746f;
+  --color-ink: #1c2420;
+  --color-error: #9b3d30;
+  --color-error-border: #efb5aa;
+  --color-error-soft: #fff2ef;
+}
+
+html,
+body,
+#root {
+  min-height: 100%;
+}
+
+body {
+  margin: 0;
+  font-family: var(--font-sans);
+  font-weight: 400;
+  font-optical-sizing: auto;
+  background: var(--color-page);
+  color: var(--color-ink);
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+.outfit-font {
+  font-family: "Outfit", sans-serif;
+  font-optical-sizing: auto;
+  font-weight: 400;
+  font-style: normal;
+}
+
+::selection {
+  background: var(--color-mint-strong);
+  color: var(--color-deep);
+}
