@@ -184,7 +184,8 @@ function ProductPreview() {
 }
 
 export function LandingPage() {
-  const { user, isLoading } = useAuth();
+  const user = useAuth((state) => state.user);
+  const isLoading = useAuth((state) => state.isLoading);
 
   if (isLoading) return null;
   if (user) {

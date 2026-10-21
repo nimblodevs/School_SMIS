@@ -5,3 +5,4 @@ export { RegisterPage } from './pages/RegisterPage.jsx';
 export { ResendOtpPage } from './pages/ResendOtpPage.jsx';
 export { ResetPasswordPage } from './pages/ResetPasswordPage.jsx';
 export { VerifyOtpPage } from './pages/VerifyOtpPage.jsx';
+export { VerifyLoginOtpPage } from './pages/VerifyLoginOtpPage.jsx';

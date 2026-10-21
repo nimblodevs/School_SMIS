@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import {
   ArrowRight,
   Building2,
@@ -11,7 +11,7 @@ import {
 import { Link, useLocation } from 'react-router-dom';
 import { getMockSchoolAccount, saveMockSchoolAccount } from '../lib/mockSchoolAccount.js';
 import { AddBranchForm } from '../components/dashboard/AddBranchForm.jsx';
-import { addSchoolBranch } from '../lib/schoolApi.js';
+import { addSchoolBranch, getCurrentSchool, getSchool } from '../lib/schoolApi.js';
 import { useAuth } from '../lib/useAuth.js';
 
 const metricCards = [
@@ -23,7 +23,7 @@ const metricCards = [
 
 export function DashboardOverviewPage() {
   const { state } = useLocation();
-  const { user } = useAuth();
+  const user = useAuth((auth) => auth.user);
   const mockAccount = getMockSchoolAccount();
   const [school, setSchool] = useState(mockAccount?.school || state?.school);
   const [primaryAdmin, setPrimaryAdmin] = useState(
@@ -32,6 +32,47 @@ export function DashboardOverviewPage() {
   const [isAddingBranch, setIsAddingBranch] = useState(false);
   const [branchError, setBranchError] = useState('');
   const [branchScope, setBranchScope] = useState('all');
+  const [supportScopeVersion, setSupportScopeVersion] = useState(0);
+  const isSuperAdmin = user?.role === 'SUPER_ADMIN' && !user.isImpersonated;
+
+  useEffect(() => {
+    const onScopeChanged = () => setSupportScopeVersion((version) => version + 1);
+    window.addEventListener('schoolSmisSupportScopeChanged', onScopeChanged);
+    return () => window.removeEventListener('schoolSmisSupportScopeChanged', onScopeChanged);
+  }, []);
+
+  useEffect(() => {
+    if (!isSuperAdmin && !user?.isImpersonated) return undefined;
+    const schoolId = isSuperAdmin
+      ? window.sessionStorage.getItem('schoolSmisSupportSchoolId')
+      : user.schoolId;
+    const branchId = window.sessionStorage.getItem('schoolSmisSupportBranchId');
+    let active = true;
+    Promise.resolve()
+      .then(() => {
+        if (!schoolId) {
+          setSchool(undefined);
+          setBranchScope('all');
+          return null;
+        }
+        return isSuperAdmin ? getSchool(schoolId) : getCurrentSchool();
+      })
+      .then((selectedSchool) => {
+        if (!active) return;
+        if (!selectedSchool) return;
+        setSchool(selectedSchool);
+        setBranchScope(
+          branchId && branchId !== 'all' && branchId !== 'unassigned' ? branchId : 'all',
+        );
+        setBranchError('');
+      })
+      .catch((error) => {
+        if (active) setBranchError(error.message);
+      });
+    return () => {
+      active = false;
+    };
+  }, [isSuperAdmin, supportScopeVersion, user?.isImpersonated, user?.schoolId]);
 
   const schoolName = school?.schoolName || 'Your school';
   const branches =
@@ -42,7 +83,11 @@ export function DashboardOverviewPage() {
         : [];
   const branchCount = school?.schoolType === 'multi-branch' ? branches.length : 0;
   const selectedBranch =
-    branchScope === 'all' ? null : branches[Number(branchScope)] || null;
+    branchScope === 'all'
+      ? null
+      : branches.find((branch) => branch.id === branchScope) ||
+        branches[Number(branchScope)] ||
+        null;
   const displayedBranches = selectedBranch ? [selectedBranch] : branches;
   const schoolLocation =
     school?.schoolType === 'standalone' && school?.schoolLocation
@@ -138,7 +183,7 @@ export function DashboardOverviewPage() {
         ) : null}
       </section>
 
-      {school?.schoolType === 'multi-branch' ? (
+      {school?.schoolType === 'multi-branch' && !isSuperAdmin ? (
         <section className="flex flex-col gap-4 rounded-2xl border border-line bg-white p-4 shadow-[0_12px_35px_-28px_rgba(13,47,34,0.35)] sm:flex-row sm:items-center sm:justify-between sm:p-5">
           <div className="flex items-start gap-3">
             <span className="grid size-10 shrink-0 place-items-center rounded-xl bg-mint text-forest">
@@ -163,7 +208,7 @@ export function DashboardOverviewPage() {
             >
               <option value="all">All school · {schoolName}</option>
               {branches.map((branch, index) => (
-                <option key={`${branch.name}-${index}`} value={String(index)}>
+                <option key={`${branch.name}-${index}`} value={branch.id || String(index)}>
                   {branch.name}
                 </option>
               ))}

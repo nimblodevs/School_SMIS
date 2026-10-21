@@ -1,40 +1,106 @@
 import 'dotenv/config';
+import { sql } from 'drizzle-orm';
 import { createApp, logger } from './app.js';
 import { closeDatabase, getDatabase } from './db/client.js';
-import * as logoStorage from './services/logoStorage.js';
+import * as objectStorage from './shared/object-storage.js';
 
 const port = Number(process.env.PORT || 3000);
 const nodeEnv = process.env.NODE_ENV || 'development';
-const app = createApp({ db: getDatabase() });
+let server;
+let shutdownPromise;
+let shutdownFailure = false;
 
-const server = app.listen(port, () => {
-  logger.info({ port, nodeEnv }, 'School SMIS API listening');
-});
+async function shutdown(signal, fatalError = null) {
+  if (fatalError) shutdownFailure = true;
+  if (shutdownPromise) return shutdownPromise;
 
-void logoStorage
-  .verifyBucketConnection()
-  .then((bucket) =>
-    logger.info({ bucket, nodeEnv }, 'Neon Object Storage bucket connected'),
-  )
-  .catch((error) => {
-    logger.error({ err: error, nodeEnv }, 'Neon Object Storage bucket connection failed');
-  });
+  shutdownPromise = (async () => {
+    logger.info({ signal }, 'API shutdown started');
+    let failed = shutdownFailure;
 
-async function shutdown(signal) {
-  logger.info({ signal }, 'API shutdown started');
-  server.close(async (error) => {
-    if (error) {
-      logger.error({ err: error }, 'HTTP server shutdown failed');
-      process.exitCode = 1;
+    if (server) {
+      try {
+        if (!server.listening) {
+          await new Promise((resolve) => {
+            const onReady = () => {
+              server.off('listening', onReady);
+              server.off('error', onReady);
+              resolve();
+            };
+            server.once('listening', onReady);
+            server.once('error', onReady);
+          });
+        }
+        if (server.listening) {
+          await new Promise((resolve, reject) => {
+            server.close((error) => (error ? reject(error) : resolve()));
+          });
+        }
+      } catch (error) {
+        failed = true;
+        logger.error({ err: error }, 'HTTP server shutdown failed');
+      }
     }
+
     try {
       await closeDatabase();
-    } catch (databaseError) {
-      logger.error({ err: databaseError }, 'Database shutdown failed');
-      process.exitCode = 1;
+    } catch (error) {
+      failed = true;
+      logger.error({ err: error }, 'Database shutdown failed');
     }
-  });
+
+    process.exitCode = failed || shutdownFailure ? 1 : 0;
+    logger.info('API shutdown complete');
+  })();
+
+  return shutdownPromise;
 }
 
-process.on('SIGINT', () => void shutdown('SIGINT'));
-process.on('SIGTERM', () => void shutdown('SIGTERM'));
+async function bootstrap() {
+  try {
+    const db = getDatabase();
+    await db.execute(sql`select 1`);
+    if (shutdownPromise) return;
+    logger.info({ nodeEnv }, 'Database connection established');
+
+    const app = createApp();
+    server = app.listen(port);
+    await new Promise((resolve, reject) => {
+      const onListening = () => {
+        server.off('error', onError);
+        resolve();
+      };
+      const onError = (error) => {
+        server.off('listening', onListening);
+        reject(error);
+      };
+      server.once('listening', onListening);
+      server.once('error', onError);
+    });
+    if (shutdownPromise) return;
+    logger.info({ port, nodeEnv }, 'School SMIS API listening');
+
+    void objectStorage
+      .verifyBucketConnection()
+      .then((bucket) => logger.info({ bucket, nodeEnv }, 'Neon Object Storage bucket connected'))
+      .catch((error) =>
+        logger.error({ err: error, nodeEnv }, 'Neon Object Storage bucket connection failed'),
+      );
+  } catch (error) {
+    logger.fatal({ err: error, nodeEnv }, 'Failed to start API server');
+    await shutdown('startup failure', error);
+  }
+}
+
+process.once('SIGINT', () => void shutdown('SIGINT'));
+process.once('SIGTERM', () => void shutdown('SIGTERM'));
+process.on('uncaughtException', (error) => {
+  logger.fatal({ err: error }, 'Uncaught exception');
+  void shutdown('uncaughtException', error);
+});
+process.on('unhandledRejection', (error) => {
+  logger.fatal({ err: error }, 'Unhandled promise rejection');
+  void shutdown('unhandledRejection', error);
+});
+
+void bootstrap();

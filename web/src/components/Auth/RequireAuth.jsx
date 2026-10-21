@@ -2,7 +2,9 @@ import { Navigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../../lib/useAuth.js';
 
 export function RequireAuth({ children }) {
-  const { user, isLoading, initializationError } = useAuth();
+  const user = useAuth((state) => state.user);
+  const isLoading = useAuth((state) => state.isLoading);
+  const initializationError = useAuth((state) => state.initializationError);
   const location = useLocation();
 
   if (isLoading) {

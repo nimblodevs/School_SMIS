@@ -37,7 +37,14 @@ function ReviewSection({ title, icon: Icon, onEdit, children }) {
   );
 }
 
-export function SchoolReviewStep({ values, documents, errors, register, onEditSection }) {
+export function SchoolReviewStep({
+  values,
+  documents,
+  errors,
+  register,
+  onEditSection,
+  schoolCode,
+}) {
   return (
     <div className="space-y-5">
       <ReviewSection
@@ -46,7 +53,10 @@ export function SchoolReviewStep({ values, documents, errors, register, onEditSe
         onEdit={() => onEditSection(0)}
       >
         <ReviewRow label="School name" value={values.schoolName} />
-        <ReviewRow label="School code" value={values.schoolCode} />
+        <ReviewRow label="School logo" value={documents.logo?.name} />
+        <ReviewRow label="School code" value={schoolCode} />
+        <ReviewRow label="NEMIS code" value={values.schoolNemisNo} />
+        <ReviewRow label="KRA PIN" value={values.schoolKraPin} />
         <ReviewRow label="School slug" value={values.schoolSlug} />
         <ReviewRow
           label="School structure"

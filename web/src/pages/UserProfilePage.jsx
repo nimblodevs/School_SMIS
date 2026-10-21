@@ -2,7 +2,7 @@ import { Link } from 'react-router-dom';
 import { useAuth } from '../lib/useAuth.js';
 
 export function UserProfilePage() {
-  const { user } = useAuth();
+  const user = useAuth((state) => state.user);
 
   const fullName = user.fullName || 'School SMIS user';
   const role = user.role || 'User';

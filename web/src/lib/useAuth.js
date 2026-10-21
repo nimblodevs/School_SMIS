@@ -1,8 +1,7 @@
-import { useContext } from 'react';
-import { AuthContext } from './authContext.js';
+import { useAuthStore } from './authStore.js';
 
-export function useAuth() {
-  const context = useContext(AuthContext);
-  if (!context) throw new Error('useAuth must be used inside AuthProvider.');
-  return context;
+const selectAllAuthState = (state) => state;
+
+export function useAuth(selector = selectAllAuthState) {
+  return useAuthStore(selector);
 }

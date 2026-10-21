@@ -55,6 +55,8 @@ const ownershipSchema = z.object({
 const mutableSchoolFields = {
   schoolSlug: z.string().trim().min(2).max(100).regex(/^[a-z0-9]+(?:-[a-z0-9]+)*$/),
   schoolMotto: z.string().trim().min(3).max(300),
+  schoolNemisNo: z.string().trim().max(50).optional(),
+  schoolKraPin: z.string().trim().max(32).optional(),
   visionStatement: z.string().trim().min(10).max(3000),
   missionStatement: z.string().trim().min(10).max(3000),
   schoolType: z.enum(['standalone', 'multi-branch']),
@@ -93,12 +95,16 @@ const locationRefinement = (school, context) => {
 
 export const createSchoolSchema = z.object({
   schoolName: z.string().trim().min(2).max(200),
-  schoolCode: z.string().trim().min(2).max(20).regex(/^[A-Za-z0-9-]+$/),
   ...mutableSchoolFields,
   confirmedAccurate: z.literal(true).optional(),
 }).superRefine(locationRefinement);
 
-export const updateSchoolSchema = z.object(mutableSchoolFields).superRefine(locationRefinement);
+export const updateSchoolSchema = z
+  .object({
+    ...mutableSchoolFields,
+    schoolName: z.string().trim().min(2).max(200).optional(),
+  })
+  .superRefine(locationRefinement);
 
 export const addBranchSchema = branchSchema;
 

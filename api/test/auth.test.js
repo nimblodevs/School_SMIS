@@ -1,64 +1,151 @@
-import express from 'express';
-import request from 'supertest';
-import { describe, expect, it } from 'vitest';
-import { createAuthRouter } from '../src/routes/auth.js';
-import { assertAuthenticationEmailConfigured } from '../src/services/authEmail.js';
+import argon2 from "argon2";
+import { createHash } from "node:crypto";
+import request from "supertest";
+import { describe, expect, it } from "vitest";
+import { createApp } from "../src/app.js";
+import {
+  hashOtp,
+  isImpersonationTargetEligible,
+  matchesPasswordHash,
+} from "../src/modules/auth/auth.service.js";
+import { resendCodeSchema } from "../src/modules/auth/auth.validation.js";
+import { assertAuthenticationEmailConfigured } from "../src/shared/email.js";
 
-function createApp(resolveDb = () => null) {
-  const app = express();
-  app.use(express.json());
-  app.use('/auth', createAuthRouter({ resolveDb, logger: { error() {} } }));
-  return app;
-}
+describe("authentication API", () => {
+  it("stores OTPs as keyed hashes rather than plaintext or an unkeyed digest", () => {
+    const otp = "123456";
+    const otpHash = hashOtp(otp);
 
-describe('authentication endpoints', () => {
-  it('limits failed sign-ins using the configured attempt and lockout settings', async () => {
-    const keys = [
-      'LOGIN_MAX_ATTEMPTS',
-      'LOGIN_LOCKOUT_MINUTES',
-      'LOGIN_RATE_LIMIT_WINDOW_MINUTES',
-      'LOGIN_RATE_LIMIT_PER_IP',
-      'LOGIN_RATE_LIMIT_PER_IDENTIFIER',
-    ];
-    const original = Object.fromEntries(keys.map((key) => [key, process.env[key]]));
-    Object.assign(process.env, {
-      LOGIN_MAX_ATTEMPTS: '2',
-      LOGIN_LOCKOUT_MINUTES: '15',
-      LOGIN_RATE_LIMIT_WINDOW_MINUTES: '15',
-      LOGIN_RATE_LIMIT_PER_IP: '10',
-      LOGIN_RATE_LIMIT_PER_IDENTIFIER: '5',
-    });
-    const app = createApp();
-
-    try {
-      const statuses = [];
-      for (let attempt = 0; attempt < 3; attempt += 1) {
-        const response = await request(app)
-          .post('/auth/login')
-          .send({ email: 'locked@example.test', password: 'password12345' });
-        statuses.push(response.status);
-      }
-
-      expect(statuses).toEqual([503, 503, 429]);
-    } finally {
-      for (const [key, value] of Object.entries(original)) {
-        if (value === undefined) delete process.env[key];
-        else process.env[key] = value;
-      }
-    }
+    expect(otpHash).toMatch(/^[a-f\d]{64}$/);
+    expect(otpHash).not.toBe(otp);
+    expect(otpHash).not.toBe(createHash("sha256").update(otp).digest("hex"));
   });
 
-  it('accepts Gmail SMTP configuration without an explicit sender address', () => {
+  it("validates login requests before accessing the database", async () => {
+    const response = await request(createApp())
+      .post("/api/v1/auth/login")
+      .send({});
+
+    expect(response.status).toBe(400);
+    expect(response.body.error.code).toBe("BAD_REQUEST");
+  });
+
+  it("routes resend-code requests and validates the request body", async () => {
+    const response = await request(createApp())
+      .post("/api/v1/auth/resend-code")
+      .send({});
+
+    expect(response.status).toBe(400);
+    expect(response.body.error.code).toBe("BAD_REQUEST");
+  });
+
+  it("validates registration and email verification requests on their routes", async () => {
+    const app = createApp();
+    const registration = await request(app)
+      .post("/api/v1/auth/register")
+      .send({});
+    const verification = await request(app)
+      .post("/api/v1/auth/verify-email")
+      .send({});
+
+    expect(registration.status).toBe(400);
+    expect(registration.body.error.code).toBe("BAD_REQUEST");
+    expect(verification.status).toBe(400);
+    expect(verification.body.error.code).toBe("BAD_REQUEST");
+  });
+
+  it("accepts email verification as a resend purpose", () => {
+    expect(
+      resendCodeSchema.safeParse({
+        email: "person@example.com",
+        purpose: "email_verification",
+      }).success,
+    ).toBe(true);
+  });
+
+  it("rejects malformed email verification resends through request validation", async () => {
+    const response = await request(createApp())
+      .post("/api/v1/auth/resend-code")
+      .send({ email: "not-an-email", purpose: "email_verification" });
+
+    expect(response.status).toBe(400);
+    expect(response.body.error.code).toBe("BAD_REQUEST");
+  });
+
+  it("requires a valid session for the current-user endpoint", async () => {
+    const response = await request(createApp()).get("/api/v1/auth/me");
+
+    expect(response.status).toBe(401);
+    expect(response.body.error.code).toBe("UNAUTHORIZED");
+  });
+
+  it("allows impersonation of every active non-super-admin role only", () => {
+    for (const role of [
+      "ADMIN",
+      "MANAGER",
+      "TEACHER",
+      "STAFF",
+      "STUDENT",
+      "PARENT",
+      "BURSAR",
+    ]) {
+      expect(isImpersonationTargetEligible({ role, isActive: true })).toBe(
+        true,
+      );
+    }
+    expect(
+      isImpersonationTargetEligible({ role: "SUPER_ADMIN", isActive: true }),
+    ).toBe(false);
+    expect(
+      isImpersonationTargetEligible({ role: "TEACHER", isActive: false }),
+    ).toBe(false);
+  });
+
+  it("keeps production impersonation limited to the existing support roles", () => {
+    expect(
+      isImpersonationTargetEligible(
+        { role: "TEACHER", isActive: true },
+        "production",
+      ),
+    ).toBe(true);
+    expect(
+      isImpersonationTargetEligible(
+        { role: "ADMIN", isActive: true },
+        "production",
+      ),
+    ).toBe(false);
+  });
+
+  it("matches a candidate password against stored password-history hashes", async () => {
+    const previousPassword = "PreviousPass123!";
+    const previousPasswordHash = await argon2.hash(previousPassword);
+
+    await expect(
+      matchesPasswordHash(previousPassword, [previousPasswordHash]),
+    ).resolves.toBe(true);
+    await expect(
+      matchesPasswordHash("DifferentPass456!", [previousPasswordHash]),
+    ).resolves.toBe(false);
+  });
+
+  it("accepts Gmail SMTP configuration without an explicit sender address", () => {
+    const keys = [
+      "GMAIL_HOST",
+      "GMAIL_USER",
+      "GMAIL_PASSWORD",
+      "SMTP_PORT",
+      "GMAIL_SECURE",
+      "AUTH_EMAIL_FROM",
+    ];
     const original = Object.fromEntries(
-      ['GMAIL_HOST', 'GMAIL_USER', 'GMAIL_PASSWORD', 'SMTP_PORT', 'GMAIL_SECURE', 'AUTH_EMAIL_FROM']
-        .map((key) => [key, process.env[key]]),
+      keys.map((key) => [key, process.env[key]]),
     );
     Object.assign(process.env, {
-      GMAIL_HOST: 'smtp.gmail.com',
-      GMAIL_USER: 'school@example.test',
-      GMAIL_PASSWORD: 'app-password',
-      SMTP_PORT: '587',
-      GMAIL_SECURE: 'false',
+      GMAIL_HOST: "smtp.gmail.com",
+      GMAIL_USER: "school@example.test",
+      GMAIL_PASSWORD: "app-password",
+      SMTP_PORT: "587",
+      GMAIL_SECURE: "false",
     });
     delete process.env.AUTH_EMAIL_FROM;
 
@@ -70,38 +157,5 @@ describe('authentication endpoints', () => {
         else process.env[key] = value;
       }
     }
-  });
-
-  it('requires a valid session for the current-user endpoint', async () => {
-    const response = await request(createApp()).get('/auth/me');
-
-    expect(response.status).toBe(401);
-    expect(response.body.error.code).toBe('AUTHENTICATION_REQUIRED');
-  });
-
-  it('does not authenticate requests when no database is configured', async () => {
-    const response = await request(createApp())
-      .post('/auth/login')
-      .send({ email: 'user@example.test', password: 'correct horse battery staple' });
-
-    expect(response.status).toBe(503);
-    expect(response.body.error.code).toBe('DATABASE_NOT_CONFIGURED');
-  });
-
-  it('validates code purpose rather than accepting arbitrary challenge types', async () => {
-    const response = await request(createApp())
-      .post('/auth/resend-code')
-      .send({ email: 'user@example.test', purpose: 'login' });
-
-    expect(response.status).toBe(400);
-    expect(response.body.error.code).toBe('VALIDATION_ERROR');
-  });
-
-  it('clears the cookie on logout when there is no database connection', async () => {
-    const response = await request(createApp()).post('/auth/logout');
-
-    expect(response.status).toBe(204);
-    expect(response.headers['set-cookie'][0]).toContain('school_smis_session=');
-    expect(response.headers['set-cookie'][0]).toContain('Expires=Thu, 01 Jan 1970');
   });
 });

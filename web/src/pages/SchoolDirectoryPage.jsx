@@ -1,17 +1,5 @@
 import { useEffect, useState } from 'react';
-import {
-  ArrowDownUp,
-  ArrowRight,
-  Building2,
-  ChevronLeft,
-  ChevronRight,
-  MapPin,
-  Plus,
-  Search,
-  School as SchoolIcon,
-  SlidersHorizontal,
-  UsersRound,
-} from 'lucide-react';
+import { ArrowDownUp, ArrowRight, Building2, ChevronLeft, ChevronRight, MapPin, Plus, Search, School as SchoolIcon, SlidersHorizontal, UsersRound } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { getMockSchoolAccount } from '../lib/mockSchoolAccount.js';
 import { ensureSchoolApiRecord, listSchools } from '../lib/schoolApi.js';
@@ -19,11 +7,7 @@ import { ensureSchoolApiRecord, listSchools } from '../lib/schoolApi.js';
 const PAGE_SIZE_OPTIONS = [10, 25, 50];
 
 function getLocations(school) {
-  return school.schoolType === 'multi-branch'
-    ? school.branches || []
-    : school.schoolLocation
-      ? [{ name: school.schoolName, ...school.schoolLocation }]
-      : [];
+  return school.schoolType === 'multi-branch' ? school.branches || [] : school.schoolLocation ? [{ name: school.schoolName, ...school.schoolLocation }] : [];
 }
 
 function getLocationLabel(school) {
@@ -40,10 +24,7 @@ function Pagination({ page, pageCount, onPageChange }) {
       : [
           1,
           ...(page > 3 ? ['start-gap'] : []),
-          ...Array.from(
-            { length: Math.min(3, pageCount - Math.max(2, page - 1)) },
-            (_, index) => Math.max(2, page - 1) + index,
-          ),
+          ...Array.from({ length: Math.min(3, pageCount - Math.max(2, page - 1)) }, (_, index) => Math.max(2, page - 1) + index),
           ...(page < pageCount - 2 ? ['end-gap'] : []),
           pageCount,
         ];
@@ -73,9 +54,7 @@ function Pagination({ page, pageCount, onPageChange }) {
               aria-current={pageNumber === page ? 'page' : undefined}
               onClick={() => onPageChange(pageNumber)}
               className={`grid size-9 place-items-center rounded-xl text-xs font-semibold transition focus-visible:ring-2 focus-visible:ring-forest focus-visible:outline-none ${
-                pageNumber === page
-                  ? 'bg-forest text-white shadow-sm'
-                  : 'text-muted hover:bg-page hover:text-deep'
+                pageNumber === page ? 'bg-forest text-white shadow-sm' : 'text-muted hover:bg-page hover:text-deep'
               }`}
             >
               {pageNumber}
@@ -127,14 +106,17 @@ export function SchoolDirectoryPage() {
   const [result, setResult] = useState(null);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState('');
-  const schools = result?.data || [];
-  const filteredCount = result?.pagination.total || 0;
-  const pageCount = Math.max(1, result?.pagination.totalPages || 1);
-  const currentPage = result?.pagination.page || page;
+  const schools = result?.data?.schools || [];
+  const filteredCount = result?.data?.total || 0;
+  const pageCount = Math.max(1, result?.data?.totalPages || 1);
+  const currentPage = result?.data?.page || page;
   const firstIndex = filteredCount ? (currentPage - 1) * pageSize : 0;
   const endIndex = Math.min(firstIndex + schools.length, filteredCount);
   const pageSchools = schools;
-  const summary = result?.summary || { registeredSchools: 0, multiBranchSchools: 0 };
+  const summary = result?.data?.summary || {
+    registeredSchools: 0,
+    multiBranchSchools: 0,
+  };
 
   useEffect(() => {
     const controller = new AbortController();
@@ -196,13 +178,9 @@ export function SchoolDirectoryPage() {
         />
         <div className="flex flex-col gap-6 p-6 sm:p-8 lg:flex-row lg:items-end lg:justify-between">
           <div>
-            <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-mint-strong">
-              School management
-            </p>
+            <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-mint-strong">School management</p>
             <h1 className="mt-2 text-3xl font-semibold tracking-tight sm:text-4xl">School directory</h1>
-            <p className="mt-2 max-w-xl text-sm leading-6 text-white/65">
-              Browse, search, and manage registered school workspaces from one place.
-            </p>
+            <p className="mt-2 max-w-xl text-sm leading-6 text-white/65">Browse, search, and manage registered school workspaces from one place.</p>
           </div>
           <Link
             to={profileTarget ? `/school/profile?schoolId=${encodeURIComponent(profileTarget)}` : '/onboarding'}
@@ -225,8 +203,16 @@ export function SchoolDirectoryPage() {
 
       <section aria-label="Directory statistics" className="grid gap-3 sm:grid-cols-3">
         {[
-          { label: 'Registered schools', value: summary.registeredSchools, icon: SchoolIcon },
-          { label: 'Multi-branch', value: summary.multiBranchSchools, icon: Building2 },
+          {
+            label: 'Registered schools',
+            value: summary.registeredSchools,
+            icon: SchoolIcon,
+          },
+          {
+            label: 'Multi-branch',
+            value: summary.multiBranchSchools,
+            icon: Building2,
+          },
           { label: 'Matching results', value: filteredCount, icon: Search },
         ].map(({ label, value, icon: Icon }) => (
           <article key={label} className="flex items-center gap-4 rounded-2xl border border-line bg-white p-4 shadow-[0_12px_35px_-28px_rgba(13,47,34,0.35)]">
@@ -246,17 +232,12 @@ export function SchoolDirectoryPage() {
           <div className="flex flex-col gap-4 xl:flex-row xl:items-center xl:justify-between">
             <div>
               <h2 className="text-base font-semibold text-deep">All schools</h2>
-              <p className="mt-1 text-xs text-muted">
-                Search by school name, code, administrator, or location.
-              </p>
+              <p className="mt-1 text-xs text-muted">Search by school name, code, administrator, or location.</p>
             </div>
             <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-[minmax(15rem,1fr)_auto_auto] xl:min-w-[42rem]">
               <label className="relative block">
                 <span className="sr-only">Search school directory</span>
-                <Search
-                  aria-hidden="true"
-                  className="pointer-events-none absolute top-1/2 left-3.5 size-4 -translate-y-1/2 text-muted"
-                />
+                <Search aria-hidden="true" className="pointer-events-none absolute top-1/2 left-3.5 size-4 -translate-y-1/2 text-muted" />
                 <input
                   id="school-directory-search"
                   type="search"
@@ -331,10 +312,18 @@ export function SchoolDirectoryPage() {
                         School <ArrowDownUp aria-hidden="true" className="size-3" />
                       </button>
                     </th>
-                    <th scope="col" className="px-4 py-3 text-[10px] font-bold uppercase tracking-[0.12em] text-muted">Location</th>
-                    <th scope="col" className="px-4 py-3 text-[10px] font-bold uppercase tracking-[0.12em] text-muted">Primary admin</th>
-                    <th scope="col" className="px-4 py-3 text-[10px] font-bold uppercase tracking-[0.12em] text-muted">Structure</th>
-                    <th scope="col" className="px-6 py-3 text-right text-[10px] font-bold uppercase tracking-[0.12em] text-muted">Actions</th>
+                    <th scope="col" className="px-4 py-3 text-[10px] font-bold uppercase tracking-[0.12em] text-muted">
+                      Location
+                    </th>
+                    <th scope="col" className="px-4 py-3 text-[10px] font-bold uppercase tracking-[0.12em] text-muted">
+                      Primary admin
+                    </th>
+                    <th scope="col" className="px-4 py-3 text-[10px] font-bold uppercase tracking-[0.12em] text-muted">
+                      Structure
+                    </th>
+                    <th scope="col" className="px-6 py-3 text-right text-[10px] font-bold uppercase tracking-[0.12em] text-muted">
+                      Actions
+                    </th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-line/70">
@@ -348,7 +337,9 @@ export function SchoolDirectoryPage() {
                             <SchoolAvatar name={school.schoolName || 'School'} logoDataUrl={school.logoUrl} />
                             <div className="min-w-0">
                               <p className="truncate text-sm font-semibold text-deep">{school.schoolName}</p>
-                              <p className="mt-1 text-xs text-muted">{school.schoolCode} · {school.schoolEmail}</p>
+                              <p className="mt-1 text-xs text-muted">
+                                {school.schoolCode} · {school.schoolEmail}
+                              </p>
                             </div>
                           </div>
                         </th>
@@ -358,9 +349,7 @@ export function SchoolDirectoryPage() {
                             <span>
                               <span className="block">{getLocationLabel(school)}</span>
                               <span className="mt-1 block text-[11px] text-muted">
-                                {school.schoolType === 'multi-branch'
-                                  ? `${locations.length} branches`
-                                  : '1 location'}
+                                {school.schoolType === 'multi-branch' ? `${locations.length} branches` : '1 location'}
                               </span>
                             </span>
                           </div>
@@ -383,7 +372,11 @@ export function SchoolDirectoryPage() {
                             >
                               Manage <ArrowRight aria-hidden="true" className="size-3.5" />
                             </Link>
-                          ) : <span aria-label="No access" className="text-xs text-muted">—</span>}
+                          ) : (
+                            <span aria-label="No access" className="text-xs text-muted">
+                              —
+                            </span>
+                          )}
                         </td>
                       </tr>
                     );
@@ -402,7 +395,9 @@ export function SchoolDirectoryPage() {
                       <SchoolAvatar name={school.schoolName || 'School'} logoDataUrl={school.logoUrl} />
                       <div className="min-w-0 flex-1">
                         <h3 className="truncate text-sm font-semibold text-deep">{school.schoolName}</h3>
-                        <p className="mt-1 text-xs text-muted">{school.schoolCode} · {school.schoolEmail}</p>
+                        <p className="mt-1 text-xs text-muted">
+                          {school.schoolCode} · {school.schoolEmail}
+                        </p>
                         <span className="mt-2 inline-flex rounded-full bg-mint/60 px-2.5 py-1 text-[10px] font-semibold text-forest">
                           {school.schoolType === 'multi-branch' ? 'Multi-branch' : 'Standalone'}
                         </span>
@@ -420,11 +415,16 @@ export function SchoolDirectoryPage() {
                     <div className="grid gap-3 rounded-xl bg-page/70 p-3 text-xs sm:grid-cols-2">
                       <p className="flex items-start gap-2 text-deep">
                         <MapPin aria-hidden="true" className="mt-0.5 size-3.5 shrink-0 text-forest" />
-                        <span>{getLocationLabel(school)} · {school.schoolType === 'multi-branch' ? `${locations.length} branches` : '1 location'}</span>
+                        <span>
+                          {getLocationLabel(school)} · {school.schoolType === 'multi-branch' ? `${locations.length} branches` : '1 location'}
+                        </span>
                       </p>
                       <p className="flex items-start gap-2 text-deep">
                         <UsersRound aria-hidden="true" className="mt-0.5 size-3.5 shrink-0 text-forest" />
-                        <span>{primaryAdmin?.name || 'Admin not provided'}<span className="mt-0.5 block break-all text-[11px] text-muted">{primaryAdmin?.email || 'No admin email'}</span></span>
+                        <span>
+                          {primaryAdmin?.name || 'Admin not provided'}
+                          <span className="mt-0.5 block break-all text-[11px] text-muted">{primaryAdmin?.email || 'No admin email'}</span>
+                        </span>
                       </p>
                     </div>
                   </li>
@@ -437,9 +437,7 @@ export function SchoolDirectoryPage() {
             <span className="mx-auto grid size-12 place-items-center rounded-2xl bg-page text-muted">
               <SchoolIcon aria-hidden="true" className="size-6" />
             </span>
-            <h3 className="mt-4 text-base font-semibold text-deep">
-              {summary.registeredSchools ? 'No matching schools' : 'No schools registered yet'}
-            </h3>
+            <h3 className="mt-4 text-base font-semibold text-deep">{summary.registeredSchools ? 'No matching schools' : 'No schools registered yet'}</h3>
             <p className="mx-auto mt-2 max-w-md text-sm leading-6 text-muted">
               {summary.registeredSchools
                 ? 'Try a different search or school type filter.'
@@ -460,8 +458,11 @@ export function SchoolDirectoryPage() {
         <footer className="flex flex-col gap-4 border-t border-line bg-page/40 px-4 py-4 sm:flex-row sm:items-center sm:justify-between sm:px-6">
           <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:gap-5">
             <p aria-live="polite" className="text-xs text-muted">
-              Showing <span className="font-semibold text-deep">{filteredCount ? firstIndex + 1 : 0}–{endIndex}</span> of{' '}
-              <span className="font-semibold text-deep">{filteredCount.toLocaleString()}</span> schools
+              Showing{' '}
+              <span className="font-semibold text-deep">
+                {filteredCount ? firstIndex + 1 : 0}–{endIndex}
+              </span>{' '}
+              of <span className="font-semibold text-deep">{filteredCount.toLocaleString()}</span> schools
             </p>
             <label className="flex items-center gap-2 text-xs text-muted">
               Rows per page
@@ -475,26 +476,22 @@ export function SchoolDirectoryPage() {
                 className="h-8 rounded-lg border border-line bg-white px-2 text-xs font-semibold text-deep outline-none focus:border-forest focus:ring-2 focus:ring-mint"
               >
                 {PAGE_SIZE_OPTIONS.map((size) => (
-                  <option key={size} value={size}>{size}</option>
+                  <option key={size} value={size}>
+                    {size}
+                  </option>
                 ))}
               </select>
             </label>
           </div>
           {filteredCount > 0 ? (
-            <Pagination
-              page={currentPage}
-              pageCount={pageCount}
-              onPageChange={(nextPage) => setPage(Math.min(Math.max(nextPage, 1), pageCount))}
-            />
+            <Pagination page={currentPage} pageCount={pageCount} onPageChange={(nextPage) => setPage(Math.min(Math.max(nextPage, 1), pageCount))} />
           ) : (
             <span className="text-[11px] text-muted">No pages to display</span>
           )}
         </footer>
       </section>
 
-      <p className="text-center text-[11px] text-muted">
-        School records are loaded from the configured school API.
-      </p>
+      <p className="text-center text-[11px] text-muted">School records are loaded from the configured school API.</p>
     </div>
   );
 }

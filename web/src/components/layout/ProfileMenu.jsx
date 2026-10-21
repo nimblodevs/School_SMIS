@@ -1,11 +1,11 @@
 import { useState } from 'react';
-import { BadgeCheck, ChevronDown, LogOut, School, UserRound } from 'lucide-react';
+import { BadgeCheck, ChevronDown, KeyRound, LogOut, School, UserRound } from 'lucide-react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../lib/useAuth.js';
 
 export function ProfileMenu({ signedIn }) {
   const navigate = useNavigate();
-  const { logout } = useAuth();
+  const logout = useAuth((state) => state.logout);
   const [isOpen, setIsOpen] = useState(false);
   const [error, setError] = useState('');
   if (!signedIn) return null;
@@ -99,6 +99,17 @@ export function ProfileMenu({ signedIn }) {
             )}
           </span>
           <span className="flex-1">{isSchoolAdmin ? 'School profile' : 'My profile'}</span>
+          <ChevronDown aria-hidden="true" className="size-3.5 -rotate-90 text-muted" />
+        </Link>
+        <Link
+          to="/auth/change-password"
+          onClick={() => setIsOpen(false)}
+          className="flex min-h-11 items-center gap-3 rounded-2xl px-3 text-sm font-semibold text-deep transition hover:bg-mint/45 hover:text-accent focus-visible:ring-2 focus-visible:ring-accent focus-visible:outline-none"
+        >
+          <span className="grid size-8 place-items-center rounded-xl bg-page text-forest">
+            <KeyRound aria-hidden="true" className="size-4" />
+          </span>
+          <span className="flex-1">Change password</span>
           <ChevronDown aria-hidden="true" className="size-3.5 -rotate-90 text-muted" />
         </Link>
         <div className="mx-2 my-1 border-t border-line/80" />

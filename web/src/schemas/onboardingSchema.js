@@ -21,17 +21,17 @@ export const schoolInformationSchema = z.object({
     .string()
     .trim()
     .min(2, 'School name must be at least 2 characters'),
-  schoolCode: z
-    .string()
-    .trim()
-    .min(2, 'School code is required')
-    .max(20, 'School code must be 20 characters or fewer')
-    .regex(/^[A-Za-z0-9-]+$/, 'Use letters, numbers, and hyphens only'),
   schoolSlug: z
     .string()
     .trim()
     .min(2, 'School slug is required')
     .regex(slugPattern, 'Use lowercase letters, numbers, and hyphens only'),
+  schoolNemisNo: z
+    .string()
+    .trim()
+    .min(1, 'NEMIS code is required')
+    .max(50, 'NEMIS code must be 50 characters or fewer'),
+  schoolKraPin: z.string().trim().max(32, 'KRA PIN must be 32 characters or fewer'),
   schoolMotto: z.string().trim().min(3, 'School motto is required'),
   visionStatement: z
     .string()
@@ -202,8 +202,9 @@ export const STEP_SCHEMAS = [
 
 export const defaultOnboardingValues = {
   schoolName: '',
-  schoolCode: '',
   schoolSlug: '',
+  schoolNemisNo: '',
+  schoolKraPin: '',
   schoolMotto: '',
   visionStatement: '',
   missionStatement: '',
@@ -237,8 +238,9 @@ export const defaultOnboardingValues = {
 export const STEP_FIELDS = {
   0: [
     'schoolName',
-    'schoolCode',
     'schoolSlug',
+    'schoolNemisNo',
+    'schoolKraPin',
     'schoolMotto',
     'visionStatement',
     'missionStatement',

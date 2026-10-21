@@ -77,7 +77,7 @@ export function SchoolContactStep({
           <div>
             <h3 className="text-sm font-semibold text-deep">Ownership &amp; School Admin</h3>
             <p className="mt-1 text-xs text-muted">
-              Admin name, email, and mobile are used as the primary school admin details.
+              Each school admin email receives a system-generated temporary password. Admins must change it after signing in.
             </p>
           </div>
           <button

@@ -15,7 +15,6 @@ import {
   Save,
   School,
   ShieldCheck,
-  Upload,
   UserRound,
 } from 'lucide-react';
 import { Link, useSearchParams } from 'react-router-dom';
@@ -437,6 +436,30 @@ export function SchoolProfilePage() {
           description="Basic identity and public-facing details."
           icon={School}
         >
+          <div className="flex flex-col items-center gap-2 sm:col-span-2">
+            <label
+              htmlFor="profile-logo-upload"
+              title={displayedLogo ? 'Click to change school logo' : 'Click to upload school logo'}
+              className="grid size-24 cursor-pointer place-items-center overflow-hidden rounded-full border-2 border-dashed border-line bg-page text-muted transition hover:border-forest hover:text-forest focus-within:ring-4 focus-within:ring-mint"
+            >
+              {displayedLogo ? (
+                <img src={displayedLogo} alt="School logo preview" className="size-full object-cover" />
+              ) : (
+                <Image aria-hidden="true" className="size-8" />
+              )}
+              <input
+                id="profile-logo-upload"
+                aria-label="Choose school logo"
+                type="file"
+                accept="image/png,image/jpeg,image/webp"
+                onChange={onLogoSelected}
+                className="sr-only"
+              />
+            </label>
+            {logoError ? (
+              <p role="alert" className="text-xs font-medium text-error">{logoError}</p>
+            ) : null}
+          </div>
           <div className="grid gap-4 sm:grid-cols-2">
             <input type="hidden" {...register('schoolName')} />
             <input type="hidden" {...register('schoolCode')} />
@@ -449,57 +472,6 @@ export function SchoolProfilePage() {
               <p className="text-[11px] font-semibold text-muted">School code</p>
               <p className="mt-1 text-sm font-semibold text-deep">{account.school.schoolCode}</p>
               <p className="mt-1 text-[11px] text-muted">School codes cannot be changed by admins.</p>
-            </div>
-            <div className="space-y-4 rounded-2xl border border-line bg-page/45 p-4 sm:col-span-2 sm:p-5">
-              <div className="flex flex-col gap-4 sm:flex-row sm:items-center">
-                <span className="grid size-16 shrink-0 place-items-center overflow-hidden rounded-2xl border border-line bg-white text-forest shadow-sm">
-                  {displayedLogo ? (
-                    <img src={displayedLogo} alt="School logo preview" className="size-full bg-white object-contain p-1" />
-                  ) : (
-                    <Image aria-hidden="true" className="size-6" />
-                  )}
-                </span>
-                <div className="min-w-0 flex-1">
-                  <h3 className="text-sm font-semibold text-deep">School logo</h3>
-                  <p className="mt-1 text-xs leading-5 text-muted">
-                    Upload a PNG, JPEG, or WebP image up to 2 MB. Changes are applied when you save the profile.
-                  </p>
-                </div>
-                <div className="flex shrink-0 flex-wrap gap-2">
-                  <label
-                    htmlFor="profile-logo-upload"
-                    className="inline-flex h-9 cursor-pointer items-center gap-2 rounded-xl bg-forest px-3 text-xs font-semibold text-white transition hover:bg-forest-dark focus-within:ring-4 focus-within:ring-mint"
-                  >
-                    <Upload aria-hidden="true" className="size-3.5" />
-                    {displayedLogo ? 'Update logo' : 'Upload logo'}
-                  </label>
-                  {displayedLogo ? (
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setLogoDataUrl('');
-                        setLogoFile(null);
-                        setLogoChanged(true);
-                        setLogoError('');
-                        setSaved(false);
-                      }}
-                      className="h-9 rounded-xl border border-line bg-white px-3 text-xs font-semibold text-muted transition hover:bg-page hover:text-deep focus-visible:ring-2 focus-visible:ring-forest focus-visible:outline-none"
-                    >
-                      Remove
-                    </button>
-                  ) : null}
-                  <input
-                    id="profile-logo-upload"
-                    type="file"
-                    accept="image/png,image/jpeg,image/webp"
-                    onChange={onLogoSelected}
-                    className="sr-only"
-                  />
-                </div>
-              </div>
-              {logoError ? (
-                <p role="alert" className="text-xs font-medium text-error">{logoError}</p>
-              ) : null}
             </div>
             <InputField
               id="profile-schoolSlug"

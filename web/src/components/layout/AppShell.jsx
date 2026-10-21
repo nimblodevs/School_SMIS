@@ -1,9 +1,16 @@
-import { Outlet } from 'react-router-dom';
+import { Navigate, Outlet } from 'react-router-dom';
 import { Footer } from './footer.jsx';
 import { Navbar } from './navbar.jsx';
 import { Sidebar } from './sidebar.jsx';
+import { useAuth } from '../../lib/useAuth.js';
 
 export function AppShell() {
+  const user = useAuth((state) => state.user);
+
+  if (user?.role === 'ADMIN' && !user.schoolId) {
+    return <Navigate to="/onboarding" replace />;
+  }
+
   return (
     <div className="mx-auto grid min-h-screen w-full max-w-screen-2xl grid-cols-1 grid-rows-[auto_auto_1fr_auto] bg-page md:grid-cols-[17rem_minmax(0,1fr)] md:grid-rows-[auto_1fr_auto]">
       <Navbar />

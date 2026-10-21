@@ -22,7 +22,7 @@ const STEPS = [
   {
     id: 'identity',
     title: 'School information',
-    description: 'Name, code, motto, vision, and mission.',
+    description: 'Name, school and NEMIS codes, motto, vision, and mission.',
   },
   {
     id: 'location',
@@ -49,10 +49,14 @@ const STEPS = [
 export function SchoolOnboardingPage() {
   const navigate = useNavigate();
   const [step, setStep] = useState(0);
+  const [schoolCode, setSchoolCode] = useState('');
+  const [schoolCodeLoading, setSchoolCodeLoading] = useState(false);
+  const [schoolCodeError, setSchoolCodeError] = useState('');
   const [slugEdited, setSlugEdited] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState('');
   const [documents, setDocuments] = useState({});
+  const [logoPreview, setLogoPreview] = useState('');
   const [documentStepError, setDocumentStepError] = useState('');
   const submittingRef = useRef(false);
   const stepRef = useRef(0);
@@ -100,9 +104,14 @@ export function SchoolOnboardingPage() {
       return;
     }
     const valid = await trigger(STEP_FIELDS[stepRef.current], { shouldFocus: true });
-    if (valid) {
-      syncStep(Math.min(stepRef.current + 1, STEPS.length - 1));
+    if (!valid) return;
+    if (stepRef.current === 0 && !schoolCode) {
+      setSchoolCodeError(
+        schoolCodeError || 'Wait for the school code to finish generating before continuing.',
+      );
+      return;
     }
+    syncStep(Math.min(stepRef.current + 1, STEPS.length - 1));
   };
 
   const goBack = () => {
@@ -132,7 +141,10 @@ export function SchoolOnboardingPage() {
     };
     setSubmitError('');
     try {
-      const createdSchool = await createSchool(submittedValues, documents);
+      const createdSchool = await createSchool(
+        { ...submittedValues, schoolCode },
+        documents,
+      );
       const primaryAdmin = createdSchool.primaryAdmin || requestedPrimaryAdmin;
       saveMockSchoolAccount({
         schoolId: createdSchool.id,
@@ -156,7 +168,7 @@ export function SchoolOnboardingPage() {
 
   return (
     <section className="flex justify-center">
-      <div className="w-full max-w-2xl">
+      <div className="w-full max-w-4xl">
         <div className="overflow-hidden rounded-3xl border border-line bg-white shadow-[0_18px_50px_-28px_rgba(13,47,34,0.35)]">
           <form onSubmit={handleSubmit(onSubmit)} noValidate>
             <div className="border-b border-line px-5 py-6 sm:px-8">
@@ -176,10 +188,20 @@ export function SchoolOnboardingPage() {
               {step === 0 ? (
                 <SchoolInformationStep
                   register={register}
+                  documents={documents}
+                  setDocuments={setDocuments}
+                  logoPreview={logoPreview}
+                  setLogoPreview={setLogoPreview}
                   errors={errors}
                   dirtyFields={dirtyFields}
                   setValue={setValue}
                   watch={watch}
+                  schoolCode={schoolCode}
+                  setSchoolCode={setSchoolCode}
+                  schoolCodeLoading={schoolCodeLoading}
+                  setSchoolCodeLoading={setSchoolCodeLoading}
+                  schoolCodeError={schoolCodeError}
+                  setSchoolCodeError={setSchoolCodeError}
                   slugEdited={slugEdited}
                   setSlugEdited={setSlugEdited}
                 />
@@ -222,6 +244,7 @@ export function SchoolOnboardingPage() {
                   errors={errors}
                   register={register}
                   onEditSection={syncStep}
+                  schoolCode={schoolCode}
                 />
               ) : null}
             </div>
@@ -262,9 +285,6 @@ export function SchoolOnboardingPage() {
           </form>
         </div>
 
-        <p className="mt-6 text-center text-xs text-muted">
-          School data is submitted to the configured API. Authentication remains in development-only demo mode.
-        </p>
       </div>
     </section>
   );
